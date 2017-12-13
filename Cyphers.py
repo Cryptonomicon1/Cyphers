@@ -20,15 +20,18 @@
 from random import randint
 from math import ceil
 from string import ascii_lowercase
+import enchant
 
-class Cryptonomicon():
+# PWL = enchant.request_pwl_dict("Dictionary.txt")
+EnDict = enchant.Dict("en_US")
+# PWLDict = enchant.DictWithPWL("en_US", "Dictionary.txt", "Raw_Dictionary.txt")
+
+class Cyphers():
 
 	def __init__(self):
 		self.low_alph = list(ascii_lowercase)
 		self.shift_alph = [[]]
 		self.alph_index = {}
-		self.biggest_word_length = 22
-		self.word_list_percent = 100
 
 		# Create Dictionary of alphabet indexes 'a' = 0, 'b'= 1, 'c' = 2, etc.
 		for char in self.low_alph:
@@ -54,29 +57,7 @@ class Cryptonomicon():
 		return self.ShiftText(-key, cypher)
 
 	def CrackCeasar(self, cypher):
-		crack = False
-		for key in range(26):
-			m = self.DecryptCeasar(key, cypher)
-			words_match = 0
-			for word_size in range(self.biggest_word_length, 2, -1):
-				words = self.ListWordsOfLength(10, word_size)
-				for word in words:
-					for word_beg in range(len(m) - word_size):
-						word_end = word_beg + word_size
-						if m[word_beg:word_end] == word:
-							words_match = words_match + 1
-						if words_match == 3:
-							crack = True
-						if crack:
-							break
-					if crack:
-						break
-				if crack:
-					break
-			if crack:
-				break
-
-		return key
+		return 0
 
 	def EncryptVigenere(self, key, message):
 		cypher = ''
@@ -106,27 +87,6 @@ class Cryptonomicon():
 
 	def CrackVigenere(self, cypher):
 		return 0
-
-	def AddWord(self, top_percent, word):
-		word = self.NoPunc(word)
-		word_length = len(word)
-		directory = self.WordFileDir(word_length)
-		line_count = self.LineCount(directory)
-		file = open(directory, 'r')
-
-		insert_loc = round(line_count * top_percent / 100)
-
-		words = []
-		for i in range(line_count):
-			if insert_loc == i:
-				words.append(word + '\n')
-			words.append(file.readline())
-
-		words = ''.join(words)
-
-		file = open(directory, 'w')
-		file.write(words)
-		file.close()
 
 	##Utility Functions##
 
@@ -160,56 +120,33 @@ class Cryptonomicon():
 		text_out = ''
 
 		for char in text_in:
-			if char.isalpha():
+			if char.lower() in self.low_alph:
 				text_out = text_out + char.lower()
 
 		return text_out
 
-	# Returns file directory of word file given word length
-	def WordFileDir(self, word_size):
-		return 'Words_Len_' + str(word_size) + '.txt'
-
-	# Opens file and returns number of lines in the file
-	def LineCount(self, directory):
-		with open(directory) as file:
-			line_count = len(file.readlines())
-		return line_count
-
-	# List words with the inputted length
-	def ListWordsOfLength(self, word_list_percent, word_length):
-		directory = self.WordFileDir(word_length)
-
-		line_count = self.LineCount(directory)
-		line_count = round(word_list_percent * line_count / 100)
-
-		file = open(directory, 'r')
+	# Tokanizes string of words without spaces
+	def TokWords(self, txt):
+		beg = 0
+		end = len(txt)
 		words = []
-		for i in range(line_count):
-			words.append(file.readline()[:-1])
+
+		while beg < len(txt):
+			while end > beg:
+				if EnDict.check(txt[beg:end]):
+
+					if beg > 0:
+						words.append(txt[:beg])
+						beg = 0
+
+					words.append(txt[beg:end])
+					txt = txt[end:]
+					end = len(txt)
+				else:
+					end = end - 1
+
+			beg = beg + 1
+			end = len(txt)
 
 		return words
 
-	# Separates strings of words without spaces
-	# the best a computer can do.
-	def TokanizeWords(self, text):
-		text_memory = text
-
-		for word_size in range(self.biggest_word_length, 0, -1):
-			words = self.ListWordsOfLength(self.word_list_percent, word_size)
-			for word in words:
-				word_beg = 0
-				while word_beg <= (len(text) - word_size):
-					word_end = word_beg + word_size
-					if word == text_memory[word_beg:word_end]:
-						text = text[:word_end] + ' ' + text[word_end:]
-						text_memory = text_memory[:word_beg] + self.Spaces(word_size + 1) + text_memory[word_end:]
-						word_beg = word_beg + 1
-					word_beg = word_beg + 1
-
-		return text
-
-	def Spaces(self, num):
-		spaces = ''
-		for i in range(num):
-			spaces = spaces + ' '
-		return spaces

@@ -14,8 +14,8 @@ python3
 If you are in Windows, open your python IDE!
 
 To setup the object type the following commands...
-from Cyphers import Cryptonomicon
-C = Cryptonomicon()
+from Cyphers import Cyphers
+C = Cyphers()
 
 To encrypt the Ceasar Cypher type...
 message = 'encrypt me please i want to be encrypted'
@@ -38,18 +38,9 @@ encryptmepleaseiwanttobeencrypted
 This looks hard to read. So, I wrote a word tokanizer.
 This tokanizer isn't the best. However, it helps.
 To use the tokanizer type...
-C.TokanizeWords(m)
+C.TokWords(m)
 
 The Tokanizer may take a while depending on how long
 the message is. The result for this case would be
 something like 'en crypt me please i want to been crypt e d'
-I guess you cannot win them all. Not all words are
-lexiconed. So, let us add our needed words by typing...
-C.AddWord(20, 'encrypt')
-C.AddWord(20, 'encrypted'
-
-The 20 is just the percentage that places the word in the
-priority list. So, the less percent, the higher the word is
-prioritized. I chose 20% as a rule of thumb. If you
-tokanize again, you will see. encrypt me please i want to
-be encrypted. Not so bad, huh?
+I guess you cannot win them all.
