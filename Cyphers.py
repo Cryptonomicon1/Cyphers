@@ -15,6 +15,7 @@
 # fac = factor
 # lil = little
 # low = lower
+# Pf/pf = playfair
 # prep = prepare
 # punc = punctuation
 # up = upper
@@ -165,6 +166,74 @@ class Cyphers():
 
 		return self.words[ wd_lens[len_ind]-1 ][wd_ind]
 
+	def EncryptPf(self, key, mess):
+		row = [0, 0]
+		col = [0, 0]
+		cypher = ''
+
+		key = self.SubLet("", 'j', self.NoPunc(key))
+		mess = self.SubLet('i', 'j', self.NoPunc(mess))
+
+		alph_part = self.AlphPart(self.DelRep(key) + 'j')
+		pf_table = self.PfTable(key, alph_part)
+
+		chunks = self.ChunkMe(mess, 2)
+		if len(chunks[-1]) == 1:
+			chunks[-1] = chunks[-1] + 'x'
+
+		for chunk in chunks:
+			for i in range(2):
+				row[i] = self.FindRow(chunk[i], pf_table)
+				col[i] = self.FindCol(chunk[i], pf_table, row[i])
+
+			if row[0] == row[1]:
+				for i in range(2):
+					cypher = cypher + pf_table[ row[i] ][ (col[i]+1) % 5 ]
+
+			elif col[0] == col[1]:
+				for i in range(2):
+					cypher = cypher + pf_table[ (row[i]+1) % 5 ][ col[i] ]
+
+			else:
+				for i in range(2):
+					cypher = cypher + pf_table[ row[i] ][ col[ (i+1) % 2 ] ]
+
+		return cypher
+
+	def DecryptPf(self, key, cypher):
+		row = [0, 0]
+		col = [0, 0]
+		mess = ''
+
+		key = self.SubLet("", 'j', self.NoPunc(key))
+		cypher = self.NoPunc(cypher)
+
+		alph_part = self.AlphPart(self.DelRep(key) + 'j')
+		pf_table = self.PfTable(key, alph_part)
+
+		chunks = self.ChunkMe(cypher, 2)
+		if len(chunks[-1]) == 1:
+			chunks[-1] = chunks[-1] + 'x'
+
+		for chunk in chunks:
+			for i in range(2):
+				row[i] = self.FindRow(chunk[i], pf_table)
+				col[i] = self.FindCol(chunk[i], pf_table, row[i])
+
+			if row[0] == row[1]:
+				for i in range(2):
+					mess = mess + pf_table[ row[i] ][ col[i]-1 ]
+
+			elif col[0] == col[1]:
+				for i in range(2):
+					mess = mess + pf_table[ row[i]-1 ][ col[i] ]
+
+			else:
+				for i in range(2):
+					mess = mess + pf_table[ row[i] ][ col[ (i+1) % 2 ] ]
+
+		return mess
+
 	##Utility Functions##
 
 	# Shift each character in a string or list by a number of letters
@@ -204,6 +273,33 @@ class Cyphers():
 
 		return text_out
 
+	# Since the Tokanizer is slow, breaking it up into shorter
+	# stints helps with speed.
+	def TokLongTxt(self, txt):
+		batch = 50
+		txt_out = ''
+		cut = 0
+		beg = 0
+		end = batch
+		temp = ''
+		while beg < len(txt):
+			if end < len(txt):
+				temp = self.TokWords(''.join(temp) + txt[beg:end])
+
+				for i in range(len(temp)):
+					if len(temp[-i]) > 2:
+						cut = len(temp) - i
+						break
+			else:
+				temp = self.TokWords(txt[beg:])
+
+			txt_out = txt_out + ' ' + ' '.join(temp[:cut])
+			temp = temp[cut:]
+			beg+=batch
+			end+=batch
+
+		return txt_out
+
 	# Tokanizes string of words without spaces
 	def TokWords(self, txt):
 		beg = 0
@@ -212,9 +308,19 @@ class Cyphers():
 		words = []
 		txt_map = list(range(len(txt)))
 		words_map = []
+		is_word = False
 
 		while len(txt) > 0 and word_len > 0:
-			if EnDict.check(txt[beg:end]) and word_len == txt_map[end-1] - txt_map[beg] + 1:
+			if EnDict.check(txt[beg:end]):
+				is_word = True
+
+			elif EnDict.check(self.SubLet('j', 'i', txt[beg:end])):
+				txt = txt[:beg] + self.SubLet('j', 'i', txt[beg:end]) + txt[end:]
+				is_word = True
+			else:
+				is_word = False
+
+			if is_word and word_len == txt_map[end-1] - txt_map[beg] + 1:
 				i  = 0
 				while i < len(words_map) and words_map[i] < txt_map[beg]:
 					i += 1
@@ -337,3 +443,107 @@ class Cyphers():
 					flip_flag = True
 
 		return ind_ord
+
+	# Delete Repetitions in String or List
+	def DelRep(self, txt):
+		if type(txt) == type("string"):
+			txt = list(txt)
+		i = 0
+		j = 1
+		while i < len(txt):
+			if j >= len(txt):
+				i+=1
+				j=i+1
+
+			elif txt[i] == txt[j]:
+				del txt[j]
+
+			else:
+				j+=1
+
+		return ''.join(txt)
+
+	# Removes letters from the alphabet that are in key
+	# write key + 'j' to use in the playfair cypher
+	def AlphPart(self, key):
+
+		# I guess Python passes by reference by default
+		# So, I grabbed self.low_alph one letter at a
+		# time to grab it by value.
+		alph_part = []
+		for letter in self.low_alph:
+			alph_part.append(letter)
+
+		i = 0
+		while i < len(alph_part):
+			if alph_part[i] in key:
+				del alph_part[i]
+			else:
+				i+=1
+
+		return alph_part
+
+	# Makes a 5 x 5 element list of lists and
+	# populates this list of lists with the key
+	# and the rest of the alphabet
+	def PfTable(self, key, alph_part):
+		key = list(self.DelRep(key))
+		for letter in alph_part:
+			key.append(letter)
+
+		pf_table = []
+		row = []
+
+		for i in range(len(key)):
+			if i/5 == int(i/5) and i != 0:
+				pf_table.append(row)
+				row = []
+				row.append(key[i])
+			else:
+				row.append(key[i])
+
+		pf_table.append(row)
+
+		return pf_table
+
+	# Returns list of string chunks of chosen length
+	def ChunkMe(self, txt, chunk_size):
+		i = 0
+		chunks = []
+		while i < len(txt):
+			if i+chunk_size < len(txt):
+				chunks.append(txt[i:i+chunk_size])
+			else:
+				chunks.append(txt[i:])
+
+			i+=chunk_size
+
+		return chunks
+
+	# Returns Row of a value in list of lists
+	def FindRow(self, value, LofL):
+		for row in range(len(LofL)):
+			if value in LofL[row]:
+				return row
+
+	# Returns Column of a value in list of lists
+	def FindCol(self, value, LofL, row=False):
+		if row == False:
+			for row in range(len(LofL)):
+				for col in range(len(LofL[row])):
+					if value == LofL[row][col]:
+						return col
+
+		else: # Find column faster if row is defined
+			for col in range(len(LofL[row])):
+				if value == LofL[row][col]:
+					return col
+
+	# Substitute or replace one letter for another in a string.
+	def SubLet(self, replacer, replacee, txt):
+		txt = list(txt)
+		for i in range(len(txt)):
+			if txt[i] == replacee:
+				txt[i] = replacer
+
+		return ''.join(txt)
